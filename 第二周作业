@@ -1,0 +1,66 @@
+import jieba
+import pandas as pd
+import numpy as np
+import random
+from PIL import Image
+from wordcloud import ImageColorGenerator
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt 
+
+#读入文件（选取了20000条弹幕）
+df=pd.read_csv(r'C:\Users\lenovo 13pro\Desktop\danmuku.csv',encoding='UTF-8',nrows=20000)
+
+#读入停用词
+stopwords = [line.strip() for line in open(r'C:\Users\lenovo 13pro\Desktop\stopwords_list.txt',encoding='UTF-8').readlines()]
+
+#过滤停用词
+df['cut'] = df['content'].apply(lambda x : [i for i in jieba.cut(x) if i not in stopwords])
+
+#建立字典进行词频统计
+wordstock={}
+for i in range(len(df['cut'])):
+    for word in df['cut'][i]:
+        if word in wordstock:
+            wordstock[word]+=1;
+        else:
+            wordstock[word]=1;
+
+#选取出现频率前20高作为高频词
+highfre=sorted(wordstock.items(), key = lambda kv:(kv[1], kv[0]),reverse=True)[:20]  
+print("高频词：",highfre,"\n")
+
+#提取特征集
+wordpack=[]
+for wordset in highfre:
+        wordpack.append(wordset[0])
+print("特征集：",wordpack,"\n")
+
+#筛除字数小于5的弹幕
+danmuku=list(x for x in df['content'] if len(x)>5)
+
+#生成次数矩阵
+matrix = np.zeros((len(danmuku), len(wordpack)))
+for danmu in danmuku:
+    for word in wordpack:
+        matrix[danmuku.index(danmu)][wordpack.index(word)]= danmu.count(word)
+print("次数矩阵")
+print(matrix)
+print("\n")
+
+#随机抽取20组弹幕观察弹幕内容以及其欧几里得距离之间的关系
+print("随机抽取20组弹幕观察距离如下：")
+for i in range(20):
+    m=random.randint(0,len(danmuku)-1);n=random.randint(0,len(danmuku)-1)
+    dis=np.sqrt(np.sum(np.square(matrix[n]- matrix[m])))#计算两弹幕之间欧几里得距离
+    print(danmuku[n],danmuku[m],"距离：%.2f"%dis)
+
+#绘制词云图
+img=Image.open(r"C:\Users\lenovo 13pro\Desktop\ciyun.jpg")
+img_mask = np.array(img) 
+wc= WordCloud(font_path='msyh.ttc',background_color="white",max_words=100, mask=img_mask,width=1000,height=1000)
+image_colors = ImageColorGenerator(img_mask)
+wc.generate_from_frequencies(wordstock)
+plt.imshow(wc.recolor(color_func=image_colors), interpolation='bilinear')
+plt.axis('off')
+plt.show()  
+
